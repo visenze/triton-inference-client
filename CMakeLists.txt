@@ -46,7 +46,6 @@ option(TRITON_ENABLE_TESTS "Include tests in build" OFF)
 option(TRITON_ENABLE_GPU "Enable GPU support in libraries" OFF)
 
 set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
-set(TRITON_THIRD_PARTY_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/third_party repo")
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -57,19 +56,6 @@ if(NOT TRITON_ENABLE_PYTHON_GRPC)
   set(TRITON_COMMON_ENABLE_PROTOBUF_PYTHON OFF)
 endif()
 
-#
-# Dependencies
-#
-include(FetchContent)
-
-FetchContent_Declare(
-  repo-third-party
-  GIT_REPOSITORY https://github.com/triton-inference-server/third_party.git
-  GIT_TAG ${TRITON_THIRD_PARTY_REPO_TAG}
-  GIT_SHALLOW ON
-)
-set(TRITON_THIRD_PARTY_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/third-party)
-FetchContent_MakeAvailable(repo-third-party)
 
 # Need to use ExternalProject for our builds so that we can get the
 # correct dependencies between our components and the ExternalProject
@@ -97,27 +83,8 @@ if (VCPKG_TARGET_TRIPLET)
   set(_CMAKE_ARGS_VCPKG_TARGET_TRIPLET "-DVCPKG_TARGET_TRIPLET:STRING=${VCPKG_TARGET_TRIPLET}")
 endif()
 
-# Location where protobuf-config.cmake will be installed varies by
-# platform
-if (WIN32)
-  set(_FINDPACKAGE_PROTOBUF_CONFIG_DIR "${TRITON_THIRD_PARTY_INSTALL_PREFIX}/protobuf/cmake")
-else()
-  set(_FINDPACKAGE_PROTOBUF_CONFIG_DIR "${TRITON_THIRD_PARTY_INSTALL_PREFIX}/protobuf/lib/cmake/protobuf")
-endif()
 
 if(TRITON_ENABLE_CC_HTTP OR TRITON_ENABLE_CC_GRPC OR TRITON_ENABLE_PERF_ANALYZER OR TRITON_ENABLE_PERF_ANALYZER_C_API)
-  # CURL is installed to ${TRITON_THIRD_PARTY_INSTALL_PREFIX}/curl/lib64 instead
-  # of ${TRITON_THIRD_PARTY_INSTALL_PREFIX}/curl/lib on Centos
-  set (CURL_LIB_DIR "lib")
-  # /etc/os-release does not exist on Windows
-  if(EXISTS "/etc/os-release")
-    file(STRINGS /etc/os-release DISTRO REGEX "^NAME=")
-    string(REGEX REPLACE "NAME=\"(.*)\"" "\\1" DISTRO "${DISTRO}")
-    message(STATUS "Distro Name: ${DISTRO}")
-    if(DISTRO STREQUAL "CentOS Linux")
-      set (CURL_LIB_DIR "lib64")
-    endif()
-  endif()
 
   set(_cc_client_depends "")
   if(${TRITON_ENABLE_CC_HTTP})
@@ -145,12 +112,6 @@ if(TRITON_ENABLE_CC_HTTP OR TRITON_ENABLE_CC_GRPC OR TRITON_ENABLE_PERF_ANALYZER
       ${_CMAKE_ARGS_OPENSSL_ROOT_DIR}
       ${_CMAKE_ARGS_CMAKE_TOOLCHAIN_FILE}
       ${_CMAKE_ARGS_VCPKG_TARGET_TRIPLET}
-      -DCURL_DIR:PATH=${TRITON_THIRD_PARTY_INSTALL_PREFIX}/curl/${CURL_LIB_DIR}/cmake/CURL
-      -DProtobuf_DIR:PATH=${_FINDPACKAGE_PROTOBUF_CONFIG_DIR}
-      -DgRPC_DIR:PATH=${TRITON_THIRD_PARTY_INSTALL_PREFIX}/grpc/lib/cmake/grpc
-      -Dabsl_DIR:PATH=${TRITON_THIRD_PARTY_INSTALL_PREFIX}/absl/lib/cmake/absl
-      -Dc-ares_DIR:PATH=${TRITON_THIRD_PARTY_INSTALL_PREFIX}/c-ares/lib/cmake/c-ares
-      -DGTEST_ROOT:PATH=${TRITON_THIRD_PARTY_INSTALL_PREFIX}/googletest
       -DTRITON_COMMON_REPO_TAG:STRING=${TRITON_COMMON_REPO_TAG}
       -DTRITON_CORE_REPO_TAG:STRING=${TRITON_CORE_REPO_TAG}
       -DTRITON_ENABLE_CC_HTTP:BOOL=${TRITON_ENABLE_CC_HTTP}
@@ -185,10 +146,6 @@ if(TRITON_ENABLE_PYTHON_HTTP OR TRITON_ENABLE_PYTHON_GRPC)
       ${_CMAKE_ARGS_OPENSSL_ROOT_DIR}
       ${_CMAKE_ARGS_CMAKE_TOOLCHAIN_FILE}
       ${_CMAKE_ARGS_VCPKG_TARGET_TRIPLET}
-      -DProtobuf_DIR:PATH=${_FINDPACKAGE_PROTOBUF_CONFIG_DIR}
-      -DgRPC_DIR:PATH=${TRITON_THIRD_PARTY_INSTALL_PREFIX}/grpc/lib/cmake/grpc
-      -Dabsl_DIR:PATH=${TRITON_THIRD_PARTY_INSTALL_PREFIX}/absl/lib/cmake/absl
-      -Dc-ares_DIR:PATH=${TRITON_THIRD_PARTY_INSTALL_PREFIX}/c-ares/lib/cmake/c-ares
       -DTRITON_COMMON_REPO_TAG:STRING=${TRITON_COMMON_REPO_TAG}
       -DTRITON_CORE_REPO_TAG:STRING=${TRITON_CORE_REPO_TAG}
       -DTRITON_VERSION:STRING=${TRITON_VERSION}
